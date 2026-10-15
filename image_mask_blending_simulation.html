@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>인공지능수학: 두 이미지에서 일부를 가져와 합성하는 방법 (아다마르 곱)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 p-6">
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl p-8">
+        <header class="border-b pb-4 mb-6">
+            <span class="bg-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full">인공지능 수학 교과 실습</span>
+            <h1 class="text-2xl font-bold mt-2 text-slate-900">🖼️ 두 이미지에서 일부를 가져와 합성하기 (아다마르 곱 활용)</h1>
+            <p class="text-slate-600 text-sm mt-1">마스크 행렬 <b>P</b>와 모든 성분이 1인 행렬 <b>J</b>를 이용하여, 아다마르 곱(요소별 곱셈 ∘)으로 이미지 X의 특정 일부분을 이미지 Y에 합성해보세요.</p>
+        </header>
+
+        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 mb-6 rounded-r-lg text-sm">
+            <h2 class="font-bold text-emerald-900 mb-1">📐 교과서 핵심 원리 (아다마르 곱)</h2>
+            <p class="text-emerald-800">이미지 X에서 가져올 영역의 성분이 1, 나머지가 0인 마스크 행렬을 <b>P</b>, 모든 성분이 1인 행렬을 <b>J</b>라 할 때:</p>
+            <ul class="list-disc list-inside text-emerald-800 mt-1 space-y-1">
+                <li><b>채널별 행렬 연산:</b> R = R<sub>X</sub> ∘ P + R<sub>Y</sub> ∘ (J - P) (G, B 채널도 동일)</li>
+                <li><strong>마스크 영역 (P = 1):</strong> 이미지 X의 픽셀 값이 그대로 유지되어 나타납니다.</li>
+                <li><strong>배경 영역 (P = 0):</strong> 이미지 Y의 픽셀 값이 그대로 유지되어 나타납니다.</li>
+            </ul>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center bg-slate-50">
+                <h3 class="font-bold text-slate-700 mb-2">이미지 X (일부를 가져올 배경/풍경 사진)</h3>
+                <input type="file" id="imageXInput" accept="image/*" class="mb-3 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                <div class="relative w-full h-44 bg-slate-200 rounded-lg overflow-hidden flex items-center justify-center">
+                    <img id="previewX" class="object-cover w-full h-full hidden" alt="Image X">
+                    <span id="placeholderX" class="text-slate-400 text-sm">이미지 X를 선택하세요</span>
+                </div>
+            </div>
+
+            <div class="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center bg-slate-50">
+                <h3 class="font-bold text-slate-700 mb-2">이미지 Y (합성될 대상/TV 화면 사진)</h3>
+                <input type="file" id="imageYInput" accept="image/*" class="mb-3 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                <div class="relative w-full h-44 bg-slate-200 rounded-lg overflow-hidden flex items-center justify-center">
+                    <img id="previewY" class="object-cover w-full h-full hidden" alt="Image Y">
+                    <span id="placeholderY" class="text-slate-400 text-sm">이미지 Y를 선택하세요</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-100 p-6 rounded-xl mb-6 shadow-inner">
+            <h3 class="font-bold text-slate-700 text-lg mb-4">🎛️ 마스크 영역 (P) 및 위치 조절</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">가져올 영역 X 시작위치 (<span id="valX">50</span>%)</label>
+                    <input type="range" id="boxX" min="0" max="80" value="30" class="w-full accent-emerald-600">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">가져올 영역 Y 시작위치 (<span id="valY">50</span>%)</label>
+                    <input type="range" id="boxY" min="0" max="80" value="20" class="w-full accent-emerald-600">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">마스크 가로 크기 (<span id="valW">40</span>%)</label>
+                    <input type="range" id="boxW" min="10" max="100" value="40" class="w-full accent-emerald-600">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">마스크 세로 크기 (<span id="valH">40</span>%)</label>
+                    <input type="range" id="boxH" min="10" max="100" value="40" class="w-full accent-emerald-600">
+                </div>
+            </div>
+            <p class="text-xs text-slate-500 mt-3">💡 슬라이더를 조절하여 이미지 X에서 마스크(P = 1)로 지정할 사각형 영역의 위치와 크기를 설정할 수 있습니다.</p>
+        </div>
+
+        <div class="bg-slate-900 text-white rounded-xl p-6 text-center shadow-lg">
+            <h3 class="font-bold text-lg mb-3 text-emerald-300">✨ 아다마르 곱 합성 결과 (이미지 Z)</h3>
+            <div class="relative w-full max-w-lg mx-auto h-80 bg-slate-800 rounded-lg overflow-hidden flex items-center justify-center border border-slate-700">
+                <canvas id="canvasZ" class="max-w-full max-h-full object-contain"></canvas>
+                <span id="placeholderZ" class="text-slate-400 text-sm">두 이미지 X와 Y를 모두 업로드해주세요.</span>
+            </div>
+            <p id="statusText" class="text-sm text-slate-400 mt-3">현재 상태: 대기 중</p>
+        </div>
+    </div>
+
+    <script>
+        const imageXInput = document.getElementById('imageXInput');
+        const imageYInput = document.getElementById('imageYInput');
+        const previewX = document.getElementById('previewX');
+        const previewY = document.getElementById('previewY');
+        const placeholderX = document.getElementById('placeholderX');
+        const placeholderY = document.getElementById('placeholderY');
+        const boxX = document.getElementById('boxX');
+        const boxY = document.getElementById('boxY');
+        const boxW = document.getElementById('boxW');
+        const boxH = document.getElementById('boxH');
+        const valX = document.getElementById('valX');
+        const valY = document.getElementById('valY');
+        const valW = document.getElementById('valW');
+        const valH = document.getElementById('valH');
+        const canvasZ = document.getElementById('canvasZ');
+        const placeholderZ = document.getElementById('placeholderZ');
+        const statusText = document.getElementById('statusText');
+
+        let imgX = null; let imgY = null;
+        let imageXLoaded = false; let imageYLoaded = false;
+
+        function updateAndBlend() {
+            if (!imageXLoaded || !imageYLoaded) return;
+            valX.innerText = boxX.value; valY.innerText = boxY.value;
+            valW.innerText = boxW.value; valH.innerText = boxH.value;
+
+            const ctx = canvasZ.getContext('2d');
+            const width = imgY.width; const height = imgY.height;
+            canvasZ.width = width; canvasZ.height = height;
+
+            const canvasTempX = document.createElement('canvas');
+            canvasTempX.width = width; canvasTempX.height = height;
+            const ctxX = canvasTempX.getContext('2d');
+            ctxX.drawImage(imgX, 0, 0, width, height);
+            const imgDataX = ctxX.getImageData(0, 0, width, height);
+
+            const canvasTempY = document.createElement('canvas');
+            canvasTempY.width = width; canvasTempY.height = height;
+            const ctxY = canvasTempY.getContext('2d');
+            ctxY.drawImage(imgY, 0, 0, width, height);
+            const imgDataY = ctxY.getImageData(0, 0, width, height);
+
+            const resultData = ctx.createImageData(width, height);
+            const dataX = imgDataX.data; const dataY = imgDataY.data; const dataR = resultData.data;
+
+            const startX = Math.floor((parseInt(boxX.value) / 100) * width);
+            const startY = Math.floor((parseInt(boxY.value) / 100) * height);
+            const regionW = Math.floor((parseInt(boxW.value) / 100) * width);
+            const regionH = Math.floor((parseInt(boxH.value) / 100) * height);
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    let p = 0;
+                    if (x >= startX && x < startX + regionW && y >= startY && y < startY + regionH) {
+                        p = 1;
+                    }
+                    dataR[idx]     = dataX[idx]     * p + dataY[idx]     * (1 - p);
+                    dataR[idx + 1] = dataX[idx + 1] * p + dataY[idx + 1] * (1 - p);
+                    dataR[idx + 2] = dataX[idx + 2] * p + dataY[idx + 2] * (1 - p);
+                    dataR[idx + 3] = 255;
+                }
+            }
+
+            ctx.putImageData(resultData, 0, 0);
+            placeholderZ.style.display = 'none';
+            statusText.innerText = `마스크 영역 적용 완료 (시작점: X=${startX}px, Y=${startY}px | 크기: ${regionW}x${regionH}px)`;
+        }
+
+        imageXInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imgX = new Image();
+                    imgX.onload = () => {
+                        previewX.src = event.target.result;
+                        previewX.classList.remove('hidden');
+                        placeholderX.style.display = 'none';
+                        imageXLoaded = true;
+                        if (imageYLoaded) updateAndBlend();
+                    };
+                    imgX.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        imageYInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imgY = new Image();
+                    imgY.onload = () => {
+                        previewY.src = event.target.result;
+                        previewY.classList.remove('hidden');
+                        placeholderY.style.display = 'none';
+                        imageYLoaded = true;
+                        if (imageXLoaded) updateAndBlend();
+                    };
+                    imgY.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        [boxX, boxY, boxW, boxH].forEach(slider => {
+            slider.addEventListener('input', () => {
+                if (imageXLoaded && imageYLoaded) {
+                    updateAndBlend();
+                } else {
+                    valX.innerText = boxX.value; valY.innerText = boxY.value;
+                    valW.innerText = boxW.value; valH.innerText = boxH.value;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

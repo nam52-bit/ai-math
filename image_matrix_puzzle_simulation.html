@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>인공지능수학: 8x8 행렬 아다마르 곱 및 이미지 합성 실습</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; }
+        .grid-cell {
+            width: 26px;
+            height: 26px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid #cbd5e1;
+            transition: all 0.1s;
+        }
+        .grid-cell-view {
+            width: 26px;
+            height: 26px;
+            border: 1px solid #cbd5e1;
+        }
+        .cell-1 { background-color: #ffffff; color: #0f172a; }
+        .cell-0 { background-color: #0f172a; color: #ffffff; }
+        .view-1 { background-color: #ffffff; }
+        .view-0 { background-color: #0f172a; }
+    </style>
+</head>
+<body class="bg-amber-50 min-h-screen text-slate-800 p-6">
+    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-8 border border-amber-200">
+        <header class="border-b border-amber-200 pb-4 mb-6">
+            <span class="bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 rounded-full">인공지능 수학 교과 실습</span>
+            <h1 class="text-2xl font-bold mt-2 text-slate-900">🧩 8×8 행렬 아다마르 곱 이미지 합성 실습 프로그램</h1>
+            <p class="text-slate-600 text-sm mt-1">행렬 A, B, P의 값을 직접 입력·수정하여 교과서처럼 8×8 바둑판 그림과 아다마르 곱 연산 결과(C)를 확인해보세요.</p>
+        </header>
+
+        <div class="bg-amber-100/60 border-l-4 border-amber-500 p-4 mb-6 rounded-r-lg text-sm">
+            <h2 class="font-bold text-amber-900 mb-1">📐 교과서 핵심 원리</h2>
+            <p class="text-amber-900">모든 성분이 1인 8×8 행렬을 <b>J</b>라 할 때, 아다마르 곱(요소별 곱셈 ∘)을 이용한 이미지 합성 공식:</p>
+            <p class="font-bold text-amber-950 mt-1 text-base">C = A ∘ P + B ∘ (J - P)</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-amber-50/50 p-5 rounded-xl border border-amber-200 shadow-sm">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-800">이미지 행렬 A</h3>
+                    <button onclick="loadDefaultA()" class="text-xs bg-amber-200 text-amber-900 font-semibold px-2.5 py-1 rounded hover:bg-amber-300">교과서 기본값</button>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center justify-around gap-6">
+                    <div class="text-center bg-amber-100 p-3 rounded-lg border border-amber-300 shadow-inner">
+                        <span class="text-xs text-amber-900 font-semibold block mb-2">A 행렬 그림</span>
+                        <div id="visualA" class="flex flex-col gap-0.5 bg-amber-200 p-1.5 rounded border border-amber-300"></div>
+                    </div>
+                    <div class="text-center bg-amber-100 p-3 rounded-lg border border-amber-300 shadow-inner">
+                        <span class="text-xs text-amber-900 font-semibold block mb-2">A 행렬 숫자 (0 또는 1)</span>
+                        <div id="matrixAContainer" class="flex flex-col gap-0.5 bg-amber-200 p-1.5 rounded border border-amber-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-amber-50/50 p-5 rounded-xl border border-amber-200 shadow-sm">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-800">이미지 행렬 B</h3>
+                    <button onclick="loadDefaultB()" class="text-xs bg-amber-200 text-amber-900 font-semibold px-2.5 py-1 rounded hover:bg-amber-300">교과서 기본값</button>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center justify-around gap-6">
+                    <div class="text-center bg-amber-100 p-3 rounded-lg border border-amber-300 shadow-inner">
+                        <span class="text-xs text-amber-900 font-semibold block mb-2">B 행렬 그림</span>
+                        <div id="visualB" class="flex flex-col gap-0.5 bg-amber-200 p-1.5 rounded border border-amber-300"></div>
+                    </div>
+                    <div class="text-center bg-amber-100 p-3 rounded-lg border border-amber-300 shadow-inner">
+                        <span class="text-xs text-amber-900 font-semibold block mb-2">B 행렬 숫자 (0 또는 1)</span>
+                        <div id="matrixBContainer" class="flex flex-col gap-0.5 bg-amber-200 p-1.5 rounded border border-amber-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50/70 p-5 rounded-xl border border-emerald-200 shadow-sm">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-emerald-900">마스크 행렬 P</h3>
+                    <div class="flex gap-2">
+                        <button onclick="loadDefaultP()" class="text-xs bg-emerald-200 text-emerald-900 font-semibold px-2.5 py-1 rounded hover:bg-emerald-300">교과서 기본값</button>
+                        <button onclick="clearP()" class="text-xs bg-slate-200 text-slate-700 font-semibold px-2.5 py-1 rounded hover:bg-slate-300">모두 0</button>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center justify-around gap-6">
+                    <div class="text-center bg-emerald-100 p-3 rounded-lg border border-emerald-300 shadow-inner">
+                        <span class="text-xs text-emerald-900 font-semibold block mb-2">P 마스크 그림</span>
+                        <div id="visualP" class="flex flex-col gap-0.5 bg-emerald-200 p-1.5 rounded border border-emerald-300"></div>
+                    </div>
+                    <div class="text-center bg-emerald-100 p-3 rounded-lg border border-emerald-300 shadow-inner">
+                        <span class="text-xs text-emerald-900 font-semibold block mb-2">P 행렬 숫자 (0 또는 1)</span>
+                        <div id="matrixPContainer" class="flex flex-col gap-0.5 bg-emerald-200 p-1.5 rounded border border-emerald-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-amber-50/50 p-5 rounded-xl border border-amber-200 shadow-sm">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-800">모든 성분이 1인 행렬 J</h3>
+                    <span class="text-xs text-slate-600 bg-amber-200 px-2.5 py-1 rounded font-semibold">읽기 전용 (All 1)</span>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center justify-around gap-6">
+                    <div class="text-center bg-amber-100 p-3 rounded-lg border border-amber-300 shadow-inner">
+                        <span class="text-xs text-amber-900 font-semibold block mb-2">J 행렬 그림 (전체 흰색)</span>
+                        <div id="visualJ" class="flex flex-col gap-0.5 bg-amber-200 p-1.5 rounded border border-amber-300"></div>
+                    </div>
+                    <div class="text-center bg-amber-100 p-3 rounded-lg border border-amber-300 shadow-inner">
+                        <span class="text-xs text-amber-900 font-semibold block mb-2">J 행렬 숫자 (모두 1)</span>
+                        <div id="matrixJContainer" class="flex flex-col gap-0.5 bg-amber-200 p-1.5 rounded border border-amber-300"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-amber-100/80 border border-amber-300 text-slate-900 rounded-xl p-6 shadow-md">
+            <h3 class="font-bold text-lg mb-4 text-amber-950 text-center">✨ 아다마르 곱 합성 결과: 이미지 C (C = A ∘ P + B ∘ (J - P))</h3>
+            <div class="flex flex-col lg:flex-row items-center justify-center gap-10">
+                <div class="bg-white p-5 rounded-xl border border-amber-300 text-center shadow-sm">
+                    <h4 class="text-xs text-amber-900 mb-3 font-semibold">최종 합성 8×8 바둑판 그림</h4>
+                    <div id="matrixCVisual" class="flex flex-col gap-0.5 bg-slate-200 p-2 rounded border border-amber-300 mx-auto w-fit"></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-amber-300 text-center shadow-sm">
+                    <h4 class="text-xs text-amber-900 mb-3 font-semibold">합성된 행렬 C 숫자 값 (8×8)</h4>
+                    <div id="matrixCValues" class="flex flex-col gap-0.5 font-mono text-xs text-slate-900 bg-amber-50 p-2 rounded border border-amber-300 mx-auto w-fit"></div>
+                </div>
+            </div>
+            <p id="statusText" class="text-sm text-amber-900 mt-5 text-center">💡 A, B, P 행렬의 값을 자유롭게 수정하면 바둑판 그림과 계산 결과가 즉시 연동됩니다.</p>
+        </div>
+    </div>
+
+    <script>
+        const defaultA = [
+            [0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,1,1,1,1,1,1],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[1,1,1,1,1,1,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]
+        ];
+        const defaultB = [
+            [0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[1,1,1,1,1,1,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,1,1,1,1,1,1],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]
+        ];
+        const defaultP = [
+            [1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0],[1,1,1,1,0,0,0,0]
+        ];
+        const matrixJ = Array(8).fill(0).map(() => Array(8).fill(1));
+
+        let matrixA = JSON.parse(JSON.stringify(defaultA));
+        let matrixB = JSON.parse(JSON.stringify(defaultB));
+        let matrixP = JSON.parse(JSON.stringify(defaultP));
+
+        function renderAll() {
+            renderMatrixInputs('matrixAContainer', 'visualA', matrixA, (r, c, val) => { matrixA[r][c] = val; calculateC(); });
+            renderMatrixInputs('matrixBContainer', 'visualB', matrixB, (r, c, val) => { matrixB[r][c] = val; calculateC(); });
+            renderMatrixInputs('matrixPContainer', 'visualP', matrixP, (r, c, val) => { matrixP[r][c] = val; calculateC(); });
+            renderReadOnlyMatrix('matrixJContainer', 'visualJ', matrixJ);
+            calculateC();
+        }
+
+        function renderMatrixInputs(containerId, visualId, data, onChange) {
+            const container = document.getElementById(containerId);
+            const visual = document.getElementById(visualId);
+            container.innerHTML = ''; visual.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                const rowDiv = document.createElement('div'); rowDiv.className = 'flex gap-0.5';
+                const rowVisDiv = document.createElement('div'); rowVisDiv.className = 'flex gap-0.5';
+                for (let c = 0; c < 8; c++) {
+                    const input = document.createElement('input');
+                    input.type = 'number'; input.min = '0'; input.max = '1'; input.value = data[r][c];
+                    input.className = `grid-cell rounded ${data[r][c] === 1 ? 'cell-1' : 'cell-0'}`;
+                    input.addEventListener('input', (e) => {
+                        let v = parseInt(e.target.value);
+                        if (v !== 0 && v !== 1) v = 0;
+                        data[r][c] = v; input.value = v;
+                        input.className = `grid-cell rounded ${v === 1 ? 'cell-1' : 'cell-0'}`;
+                        updateVisual(visualId, data);
+                        onChange(r, c, v);
+                    });
+                    rowDiv.appendChild(input);
+                    const vCell = document.createElement('div');
+                    vCell.className = `grid-cell-view rounded ${data[r][c] === 1 ? 'view-1' : 'view-0'}`;
+                    rowVisDiv.appendChild(vCell);
+                }
+                container.appendChild(rowDiv); visual.appendChild(rowVisDiv);
+            }
+        }
+
+        function renderReadOnlyMatrix(containerId, visualId, data) {
+            const container = document.getElementById(containerId);
+            const visual = document.getElementById(visualId);
+            container.innerHTML = ''; visual.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                const rowDiv = document.createElement('div'); rowDiv.className = 'flex gap-0.5';
+                const rowVisDiv = document.createElement('div'); rowVisDiv.className = 'flex gap-0.5';
+                for (let c = 0; c < 8; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell rounded cell-1';
+                    cell.style.display = 'flex'; cell.style.alignItems = 'center'; cell.style.justifyContent = 'center';
+                    cell.innerText = data[r][c];
+                    rowDiv.appendChild(cell);
+                    const vCell = document.createElement('div');
+                    vCell.className = 'grid-cell-view rounded view-1';
+                    rowVisDiv.appendChild(vCell);
+                }
+                container.appendChild(rowDiv); visual.appendChild(rowVisDiv);
+            }
+        }
+
+        function updateVisual(visualId, data) {
+            const visual = document.getElementById(visualId);
+            visual.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                const rowVisDiv = document.createElement('div'); rowVisDiv.className = 'flex gap-0.5';
+                for (let c = 0; c < 8; c++) {
+                    const vCell = document.createElement('div');
+                    vCell.className = `grid-cell-view rounded ` + (data[r][c] === 1 ? 'view-1' : 'view-0');
+                    rowVisDiv.appendChild(vCell);
+                }
+                visual.appendChild(rowVisDiv);
+            }
+        }
+
+        function calculateC() {
+            const visualContainer = document.getElementById('matrixCVisual');
+            const valuesContainer = document.getElementById('matrixCValues');
+            visualContainer.innerHTML = ''; valuesContainer.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                const rowVisualDiv = document.createElement('div'); rowVisualDiv.className = 'flex gap-0.5';
+                const rowValuesDiv = document.createElement('div'); rowValuesDiv.className = 'flex gap-2 justify-center';
+                for (let c = 0; c < 8; c++) {
+                    const a = matrixA[r][c]; const b = matrixB[r][c]; const p = matrixP[r][c];
+                    const valC = a * p + b * (1 - p);
+                    const cell = document.createElement('div');
+                    cell.className = `grid-cell-view rounded ${valC === 1 ? 'view-1' : 'view-0'}`;
+                    rowVisualDiv.appendChild(cell);
+                    const numCell = document.createElement('span');
+                    numCell.className = 'w-5 text-center font-bold'; numCell.innerText = valC;
+                    rowValuesDiv.appendChild(numCell);
+                }
+                visualContainer.appendChild(rowVisualDiv);
+                valuesContainer.appendChild(rowValuesDiv);
+            }
+        }
+
+        function loadDefaultA() { matrixA = JSON.parse(JSON.stringify(defaultA)); renderAll(); }
+        function loadDefaultB() { matrixB = JSON.parse(JSON.stringify(defaultB)); renderAll(); }
+        function loadDefaultP() { matrixP = JSON.parse(JSON.stringify(defaultP)); renderAll(); }
+        function clearP() { matrixP = Array(8).fill(0).map(() => Array(8).fill(0)); renderAll(); }
+
+        renderAll();
+    </script>
+</body>
+</html>
