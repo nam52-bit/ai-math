@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>인공지능수학: 두 이미지 데이터 오버랩(합성) 실습</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 p-6">
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl p-8">
+        <header class="border-b pb-4 mb-6">
+            <span class="bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full">인공지능 수학 교과 실습</span>
+            <h1 class="text-2xl font-bold mt-2 text-slate-900">🖼️ 두 장면 오버랩 (행렬 연산 기반 이미지 합성) 실습</h1>
+            <p class="text-slate-600 text-sm mt-1">두 이미지 X와 Y를 업로드하고 가중치(α)를 조절하여, 행렬 연산 <b>R = αR<sub>X</sub> + (1-α)R<sub>Y</sub></b>에 따른 합성 결과를 실시간으로 확인해보세요.</p>
+        </header>
+
+        <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 mb-6 rounded-r-lg text-sm">
+            <h2 class="font-bold text-indigo-900 mb-1">📐 교과서 핵심 원리</h2>
+            <p class="text-indigo-800">가중치 α (0 ≤ α ≤ 1)에 대하여:</p>
+            <ul class="list-disc list-inside text-indigo-800 mt-1 space-y-1">
+                <li><b>채널별 행렬 연산:</b> R = αR<sub>X</sub> + (1-α)R<sub>Y</sub>, G = αG<sub>X</sub> + (1-α)G<sub>Y</sub>, B = αB<sub>X</sub> + (1-α)B<sub>Y</sub></li>
+                <li><strong>α = 1 일 때:</strong> 이미지 X만 선명하게 보입니다.</li>
+                <li><strong>α = 0 일 때:</strong> 이미지 Y만 선명하게 보입니다.</li>
+                <li><strong>α = 0.5 일 때:</strong> 두 이미지 채널 값이 반반씩 섞여 비슷하게 겹쳐 보입니다.</li>
+            </ul>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center bg-slate-50">
+                <h3 class="font-bold text-slate-700 mb-2">이미지 X (기준 배경)</h3>
+                <input type="file" id="imageXInput" accept="image/*" class="mb-3 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                <div class="relative w-full h-48 bg-slate-200 rounded-lg overflow-hidden flex items-center justify-center">
+                    <img id="previewX" class="object-cover w-full h-full hidden" alt="Image X">
+                    <span id="placeholderX" class="text-slate-400 text-sm">이미지 X를 선택하세요</span>
+                </div>
+            </div>
+
+            <div class="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center bg-slate-50">
+                <h3 class="font-bold text-slate-700 mb-2">이미지 Y (오버랩할 이미지)</h3>
+                <input type="file" id="imageYInput" accept="image/*" class="mb-3 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                <div class="relative w-full h-48 bg-slate-200 rounded-lg overflow-hidden flex items-center justify-center">
+                    <img id="previewY" class="object-cover w-full h-full hidden" alt="Image Y">
+                    <span id="placeholderY" class="text-slate-400 text-sm">이미지 Y를 선택하세요</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-100 p-6 rounded-xl mb-6 shadow-inner">
+            <div class="flex justify-between items-center mb-2">
+                <label for="alphaSlider" class="font-bold text-slate-700 text-lg">가중치 (α) 조절</label>
+                <span id="alphaValueDisplay" class="text-lg font-bold text-indigo-600 bg-white px-3 py-1 rounded-md shadow-sm">α = 0.50</span>
+            </div>
+            <input type="range" id="alphaSlider" min="0" max="1" step="0.01" value="0.5" class="w-full h-3 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+            <div class="flex justify-between text-xs text-slate-500 mt-2 font-medium">
+                <span>α = 0 (이미지 Y만 보임)</span>
+                <span>α = 0.5 (반반 합성)</span>
+                <span>α = 1 (이미지 X만 보임)</span>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 text-white rounded-xl p-6 text-center shadow-lg">
+            <h3 class="font-bold text-lg mb-3 text-indigo-300">✨ 합성된 이미지 Z 결과</h3>
+            <div class="relative w-full max-w-lg mx-auto h-80 bg-slate-800 rounded-lg overflow-hidden flex items-center justify-center border border-slate-700">
+                <canvas id="canvasZ" class="max-w-full max-h-full object-contain"></canvas>
+                <span id="placeholderZ" class="text-slate-400 text-sm">두 이미지를 업로드하면 합성 결과가 나타납니다.</span>
+            </div>
+            <p id="statusText" class="text-sm text-slate-400 mt-3">현재 상태: 이미지를 모두 업로드해주세요.</p>
+        </div>
+    </div>
+
+    <script>
+        const imageXInput = document.getElementById('imageXInput');
+        const imageYInput = document.getElementById('imageYInput');
+        const previewX = document.getElementById('previewX');
+        const previewY = document.getElementById('previewY');
+        const placeholderX = document.getElementById('placeholderX');
+        const placeholderY = document.getElementById('placeholderY');
+        const alphaSlider = document.getElementById('alphaSlider');
+        const alphaValueDisplay = document.getElementById('alphaValueDisplay');
+        const canvasZ = document.getElementById('canvasZ');
+        const placeholderZ = document.getElementById('placeholderZ');
+        const statusText = document.getElementById('statusText');
+
+        let imgX = null; let imgY = null;
+        let imageXLoaded = false; let imageYLoaded = false;
+
+        function loadImagesAndBlend() {
+            if (!imageXLoaded || !imageYLoaded) return;
+            const ctx = canvasZ.getContext('2d');
+            const width = imgX.width; const height = imgX.height;
+            canvasZ.width = width; canvasZ.height = height;
+
+            const canvasTempX = document.createElement('canvas');
+            canvasTempX.width = width; canvasTempX.height = height;
+            const ctxX = canvasTempX.getContext('2d');
+            ctxX.drawImage(imgX, 0, 0, width, height);
+            const imgDataX = ctxX.getImageData(0, 0, width, height);
+
+            const canvasTempY = document.createElement('canvas');
+            canvasTempY.width = width; canvasTempY.height = height;
+            const ctxY = canvasTempY.getContext('2d');
+            ctxY.drawImage(imgY, 0, 0, width, height);
+            const imgDataY = ctxY.getImageData(0, 0, width, height);
+
+            const alpha = parseFloat(alphaSlider.value);
+            alphaValueDisplay.innerText = `α = ${alpha.toFixed(2)}`;
+
+            const resultData = ctx.createImageData(width, height);
+            const dataX = imgDataX.data; const dataY = imgDataY.data; const dataR = resultData.data;
+
+            for (let i = 0; i < dataX.length; i += 4) {
+                dataR[i]     = alpha * dataX[i]     + (1 - alpha) * dataY[i];
+                dataR[i + 1] = alpha * dataX[i + 1] + (1 - alpha) * dataY[i + 1];
+                dataR[i + 2] = alpha * dataX[i + 2] + (1 - alpha) * dataY[i + 2];
+                dataR[i + 3] = 255;
+            }
+
+            ctx.putImageData(resultData, 0, 0);
+            placeholderZ.style.display = 'none';
+
+            let desc = "";
+            if (alpha === 1) desc = "α = 1일 때: 이미지 X만 보입니다.";
+            else if (alpha === 0) desc = "α = 0일 때: 이미지 Y만 보입니다.";
+            else if (alpha > 0.5) desc = `α = ${alpha.toFixed(2)}일 때: 이미지 X가 이미지 Y보다 더 선명하게 보입니다.`;
+            else if (alpha < 0.5) desc = `α = ${alpha.toFixed(2)}일 때: 이미지 Y가 이미지 X보다 더 선명하게 보입니다.`;
+            else desc = "α = 0.5일 때: 두 이미지 데이터가 비슷하게 보입니다.";
+            statusText.innerText = desc;
+        }
+
+        imageXInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imgX = new Image();
+                    imgX.onload = () => {
+                        previewX.src = event.target.result;
+                        previewX.classList.remove('hidden');
+                        placeholderX.style.display = 'none';
+                        imageXLoaded = true;
+                        if (imageYLoaded) loadImagesAndBlend();
+                    };
+                    imgX.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        imageYInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imgY = new Image();
+                    imgY.onload = () => {
+                        previewY.src = event.target.result;
+                        previewY.classList.remove('hidden');
+                        placeholderY.style.display = 'none';
+                        imageYLoaded = true;
+                        if (imageXLoaded) loadImagesAndBlend();
+                    };
+                    imgY.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        alphaSlider.addEventListener('input', () => {
+            alphaValueDisplay.innerText = `α = ${parseFloat(alphaSlider.value).toFixed(2)}`;
+            if (imageXLoaded && imageYLoaded) loadImagesAndBlend();
+        });
+    </script>
+</body>
+</html>
